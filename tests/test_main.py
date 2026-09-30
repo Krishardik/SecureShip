@@ -1,11 +1,7 @@
 from fastapi.testclient import TestClient
 
-from app.main import app
 
-client = TestClient(app)
-
-
-def test_root_endpoint():
+def test_root_endpoint(client: TestClient):
     """
     Verify that the root endpoint works correctly.
     This test checks two things:
@@ -16,3 +12,16 @@ def test_root_endpoint():
     response = client.get("/")
     assert response.status_code == 200
     assert response.json() == {"message": "SecureShip is running"}
+
+
+def test_create_project(client: TestClient):
+    response = client.post(
+        "/projects",
+        json={"name": "SecureShip"},
+    )
+
+    assert response.status_code == 201
+
+    data = response.json()
+    assert data["name"] == "SecureShip"
+    assert isinstance(data["id"], int)
