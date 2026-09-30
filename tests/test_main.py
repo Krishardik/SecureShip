@@ -25,3 +25,21 @@ def test_create_project(client: TestClient):
     data = response.json()
     assert data["name"] == "SecureShip"
     assert isinstance(data["id"], int)
+
+
+def test_create_project_rejects_empty_name(client: TestClient):
+    response = client.post(
+        "/projects",
+        json={"name": ""},
+    )
+
+    assert response.status_code == 422
+
+
+def test_create_project_rejects_name_over_100_characters(client: TestClient):
+    response = client.post(
+        "/projects",
+        json={"name": "A" * 101},
+    )
+
+    assert response.status_code == 422
