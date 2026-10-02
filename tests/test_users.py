@@ -103,3 +103,16 @@ def test_register_user_stores_hashed_password(
     assert user.password_hash != password
     assert user.password_hash.startswith("$argon2id$")
     assert verify_password(password, user.password_hash)
+
+
+def test_register_user_normalizes_email(client: TestClient):
+    response = client.post(
+        "/users/register",
+        json={
+            "email": "User@Example.COM",
+            "password": "StrongPassword123!",
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["email"] == "user@example.com"
