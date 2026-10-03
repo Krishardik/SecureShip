@@ -1,6 +1,8 @@
+import jwt
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.security import hash_password
 from app.models import User
 
@@ -29,10 +31,19 @@ def test_login_with_valid_credentials(
     )
 
     assert response.status_code == 200
-    assert response.json() == {
-        "message": "Authentication successful",
-        "user_id": user.id,
-    }
+
+    data = response.json()
+
+    assert data["token_type"] == "bearer"
+    assert isinstance(data["access_token"], str)
+
+    payload = jwt.decode(
+        data["access_token"],
+        settings.jwt_secret_key,
+        algorithms=[settings.jwt_algorithm],
+    )
+
+    assert payload["sub"] == str(user.id)
 
 
 def test_login_rejects_wrong_password(

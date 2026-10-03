@@ -5,8 +5,14 @@ from sqlalchemy.orm import Session
 from app.core.security import hash_password
 from app.db.session import get_db
 from app.models import User
-from app.schemas.user import UserCreate, UserLogin, UserResponse
+from app.schemas.user import (
+    TokenResponse,
+    UserCreate,
+    UserLogin,
+    UserResponse,
+)
 from app.services.auth import authenticate_user
+from app.services.token import create_access_token
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -57,7 +63,10 @@ def register_user(
     return new_user
 
 
-@router.post("/login")
+@router.post(
+    "/login",
+    response_model=TokenResponse,
+)
 def login_user(
     user: UserLogin,
     db: Session = Depends(get_db),  # noqa: B008
@@ -74,7 +83,9 @@ def login_user(
             detail="Invalid email or password",
         )
 
+    access_token = create_access_token(authenticated_user.id)
+
     return {
-        "message": "Authentication successful",
-        "user_id": authenticated_user.id,
+        "access_token": access_token,
+        "token_type": "bearer",
     }
