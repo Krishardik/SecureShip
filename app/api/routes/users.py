@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session
 from app.core.security import hash_password
 from app.db.session import get_db
 from app.models import User
-from app.schemas.user import UserCreate, UserResponse
+from app.schemas.user import UserCreate, UserLogin, UserResponse
+from app.services.auth import authenticate_user
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -54,3 +55,26 @@ def register_user(
     db.refresh(new_user)
 
     return new_user
+
+
+@router.post("/login")
+def login_user(
+    user: UserLogin,
+    db: Session = Depends(get_db),  # noqa: B008
+):
+    authenticated_user = authenticate_user(
+        db,
+        user.email,
+        user.password,
+    )
+
+    if authenticated_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+        )
+
+    return {
+        "message": "Authentication successful",
+        "user_id": authenticated_user.id,
+    }
