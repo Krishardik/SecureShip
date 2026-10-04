@@ -10,3 +10,4 @@ class ProjectResponse(BaseModel):
 
     id: int
     name: str
+    owner_id: int

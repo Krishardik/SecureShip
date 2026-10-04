@@ -178,3 +178,108 @@ def test_create_project_rejects_inactive_user(
     assert response.json() == {
         "detail": "Inactive user",
     }
+
+
+def test_project_owner_can_get_project(
+    client: TestClient,
+    db_session: Session,
+):
+    user = create_test_user(db_session)
+    token = create_access_token(user.id)
+
+    create_response = client.post(
+        "/projects",
+        json={"name": "Owned Project"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    project_id = create_response.json()["id"]
+
+    response = client.get(
+        f"/projects/{project_id}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["id"] == project_id
+    assert data["name"] == "Owned Project"
+    assert data["owner_id"] == user.id
+
+
+def test_get_project_requires_authentication(
+    client: TestClient,
+    db_session: Session,
+):
+    user = create_test_user(db_session)
+    token = create_access_token(user.id)
+
+    create_response = client.post(
+        "/projects",
+        json={"name": "Private Project"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    project_id = create_response.json()["id"]
+
+    response = client.get(f"/projects/{project_id}")
+
+    assert response.status_code == 401
+
+
+def test_user_cannot_get_another_users_project(
+    client: TestClient,
+    db_session: Session,
+):
+    owner = create_test_user(db_session)
+
+    owner_token = create_access_token(owner.id)
+
+    create_response = client.post(
+        "/projects",
+        json={"name": "Private Project"},
+        headers={"Authorization": f"Bearer {owner_token}"},
+    )
+
+    project_id = create_response.json()["id"]
+
+    another_user = User(
+        email="another-user@example.com",
+        password_hash=hash_password("AnotherStrongPassword123!"),
+    )
+
+    db_session.add(another_user)
+    db_session.commit()
+    db_session.refresh(another_user)
+
+    another_user_token = create_access_token(another_user.id)
+
+    response = client.get(
+        f"/projects/{project_id}",
+        headers={"Authorization": f"Bearer {another_user_token}"},
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {
+        "detail": "You do not have access to this project",
+    }
+
+
+def test_get_project_returns_404_for_unknown_project(
+    client: TestClient,
+    db_session: Session,
+):
+    user = create_test_user(db_session)
+    token = create_access_token(user.id)
+
+    response = client.get(
+        "/projects/99999",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Project not found",
+    }
