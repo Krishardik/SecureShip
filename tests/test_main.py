@@ -58,6 +58,25 @@ def test_create_project(client: TestClient, db_session: Session):
     assert data["owner_id"] == user.id
 
 
+def test_create_project_rejects_client_supplied_owner_id(
+    client: TestClient,
+    db_session: Session,
+):
+    user = create_test_user(db_session)
+    token = create_access_token(user.id)
+
+    response = client.post(
+        "/projects",
+        json={
+            "name": "SecureShip",
+            "owner_id": 999,
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 422
+
+
 def test_create_project_rejects_empty_name(
     client: TestClient,
     db_session: Session,
