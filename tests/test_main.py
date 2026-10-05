@@ -55,6 +55,7 @@ def test_create_project(client: TestClient, db_session: Session):
 
     assert data["name"] == "SecureShip"
     assert isinstance(data["id"], int)
+    assert data["owner_id"] == user.id
 
 
 def test_create_project_rejects_empty_name(
@@ -193,6 +194,8 @@ def test_project_owner_can_get_project(
         headers={"Authorization": f"Bearer {token}"},
     )
 
+    assert create_response.status_code == 201
+
     project_id = create_response.json()["id"]
 
     response = client.get(
@@ -222,6 +225,8 @@ def test_get_project_requires_authentication(
         headers={"Authorization": f"Bearer {token}"},
     )
 
+    assert create_response.status_code == 201
+
     project_id = create_response.json()["id"]
 
     response = client.get(f"/projects/{project_id}")
@@ -229,12 +234,11 @@ def test_get_project_requires_authentication(
     assert response.status_code == 401
 
 
-def test_user_cannot_get_another_users_project(
+def test_user_cannot_access_another_users_project(
     client: TestClient,
     db_session: Session,
 ):
     owner = create_test_user(db_session)
-
     owner_token = create_access_token(owner.id)
 
     create_response = client.post(
@@ -242,6 +246,8 @@ def test_user_cannot_get_another_users_project(
         json={"name": "Private Project"},
         headers={"Authorization": f"Bearer {owner_token}"},
     )
+
+    assert create_response.status_code == 201
 
     project_id = create_response.json()["id"]
 
@@ -261,9 +267,9 @@ def test_user_cannot_get_another_users_project(
         headers={"Authorization": f"Bearer {another_user_token}"},
     )
 
-    assert response.status_code == 403
+    assert response.status_code == 404
     assert response.json() == {
-        "detail": "You do not have access to this project",
+        "detail": "Project not found",
     }
 
 
