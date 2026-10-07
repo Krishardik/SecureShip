@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -14,6 +16,8 @@ from app.schemas.user import (
 from app.services.auth import authenticate_user
 from app.services.token import create_access_token
 
+security_logger = logging.getLogger("secureship.security")
+
 router = APIRouter(prefix="/users", tags=["users"])
 
 
@@ -26,12 +30,16 @@ def register_user(
     user: UserCreate,
     db: Session = Depends(get_db),  # noqa: B008
 ):
-    # Normalize the email so the same logical address is stored consistently.
     normalized_email = str(user.email).lower()
 
     existing_user = db.query(User).filter(User.email == normalized_email).first()
 
     if existing_user:
+        security_logger.warning(
+            "Registration failed: email already registered",
+            extra={"event": "registration_failure"},
+        )
+
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Email is already registered",
@@ -49,9 +57,12 @@ def register_user(
     try:
         db.commit()
     except IntegrityError:
-        # Another request may have created the same email between
-        # our existence check and the database commit.
         db.rollback()
+
+        security_logger.warning(
+            "Registration failed: duplicate email",
+            extra={"event": "registration_failure"},
+        )
 
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -59,6 +70,14 @@ def register_user(
         ) from None
 
     db.refresh(new_user)
+
+    security_logger.info(
+        "User registration successful",
+        extra={
+            "event": "registration_success",
+            "user_id": new_user.id,
+        },
+    )
 
     return new_user
 
