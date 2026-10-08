@@ -1,9 +1,10 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.rate_limit import login_rate_limiter
 from app.core.security import hash_password
 from app.db.session import get_db
 from app.models import User
@@ -87,9 +88,27 @@ def register_user(
     response_model=TokenResponse,
 )
 def login_user(
+    request: Request,
     user: UserLogin,
     db: Session = Depends(get_db),  # noqa: B008
 ):
+    client_ip = request.client.host if request.client else "unknown"
+
+    if login_rate_limiter.is_blocked(client_ip):
+        security_logger.warning(
+            "Login blocked: rate limit exceeded",
+            extra={
+                "event": "login_rate_limit",
+                "client_ip": client_ip,
+            },
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many login attempts. Try again later.",
+            headers={"Retry-After": "60"},
+        )
+
     authenticated_user = authenticate_user(
         db,
         user.email,
@@ -97,10 +116,14 @@ def login_user(
     )
 
     if authenticated_user is None:
+        login_rate_limiter.record_failure(client_ip)
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
         )
+
+    login_rate_limiter.reset(client_ip)
 
     access_token = create_access_token(authenticated_user.id)
 
