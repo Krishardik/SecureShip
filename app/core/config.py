@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 30
 
+    # Comma-separated values are read from environment variables.
+    allowed_origins: list[str] = ["http://localhost:3000"]
+    allowed_hosts: list[str] = ["localhost", "127.0.0.1", "testserver"]
+
     @field_validator("jwt_secret_key")
     @classmethod
     def validate_jwt_secret_key(cls, value: str) -> str:
@@ -36,6 +40,16 @@ class Settings(BaseSettings):
             raise ValueError("JWT_SECRET_KEY must not use a known insecure value")
 
         return value
+
+    @field_validator("allowed_origins", "allowed_hosts")
+    @classmethod
+    def validate_non_empty_entries(cls, values: list[str]) -> list[str]:
+        normalized = [value.strip() for value in values if value.strip()]
+
+        if not normalized:
+            raise ValueError("Security allowlists must not be empty")
+
+        return normalized
 
 
 settings = Settings()
