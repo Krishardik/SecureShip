@@ -103,6 +103,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  dockerfile-lint:
+    name: Dockerfile Best-Practice Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Lint Dockerfile with Hadolint
+        run: docker run --rm -i hadolint/hadolint:v2.12.0 < Dockerfile
+
   container-security:
     name: Container Vulnerability Scan and SBOM
     runs-on: ubuntu-latest
@@ -117,7 +128,7 @@ jobs:
         run: docker build --tag secureship:ci .
 
       - name: Generate CycloneDX SBOM
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: secureship:ci
           format: cyclonedx
@@ -135,7 +146,7 @@ jobs:
           retention-days: 30
 
       - name: Scan image for critical vulnerabilities
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: secureship:ci
           format: table
