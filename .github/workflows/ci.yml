@@ -117,7 +117,7 @@ jobs:
         run: docker build --tag secureship:ci .
 
       - name: Generate CycloneDX SBOM
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: secureship:ci
           format: cyclonedx
@@ -135,7 +135,7 @@ jobs:
           retention-days: 30
 
       - name: Scan image for critical vulnerabilities
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: secureship:ci
           format: table
