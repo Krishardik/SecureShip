@@ -1,0 +1,31 @@
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# Local Python environment and caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Git metadata and local database files
+.git/
+*.db
+*.sqlite
+*.sqlite3
+
+# Tests and local development artifacts
+tests/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
