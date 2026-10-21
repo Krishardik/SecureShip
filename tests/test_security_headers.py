@@ -14,6 +14,8 @@ def test_security_headers_are_present(client: TestClient):
         == "camera=(), microphone=(), geolocation=()"
     )
     assert response.headers["Cache-Control"] == "no-store"
+    assert response.headers["Cross-Origin-Resource-Policy"] == "same-origin"
+    assert response.headers["X-Permitted-Cross-Domain-Policies"] == "none"
 
 
 def test_security_headers_are_applied_to_authenticated_routes(
@@ -27,3 +29,5 @@ def test_security_headers_are_applied_to_authenticated_routes(
     assert response.headers["X-Frame-Options"] == "DENY"
     assert response.headers["Referrer-Policy"] == "no-referrer"
     assert response.headers["Cache-Control"] == "no-store"
+    assert response.headers["Cross-Origin-Resource-Policy"] == "same-origin"
+    assert response.headers["X-Permitted-Cross-Domain-Policies"] == "none"
