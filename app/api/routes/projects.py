@@ -2,6 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies.auth import get_current_user
+from app.core.api_rate_limit import (
+    project_creation_api_limiter,
+    rate_limit_dependency,
+)
 from app.db.session import get_db
 from app.models import Project, User
 from app.schemas.project import ProjectCreate, ProjectResponse, ProjectUpdate
@@ -36,6 +40,7 @@ def get_owned_project(
 @router.post(
     "",
     response_model=ProjectResponse,
+    dependencies=[Depends(rate_limit_dependency(project_creation_api_limiter))],
     status_code=status.HTTP_201_CREATED,
 )
 def create_project(

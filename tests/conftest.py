@@ -16,6 +16,22 @@ from app.db.session import get_db
 from app.main import app
 
 
+@pytest.fixture(autouse=True)
+def reset_api_rate_limiters():
+    from app.core.api_rate_limit import (
+        project_creation_api_limiter,
+        registration_api_limiter,
+    )
+
+    registration_api_limiter.clear()
+    project_creation_api_limiter.clear()
+
+    yield
+
+    registration_api_limiter.clear()
+    project_creation_api_limiter.clear()
+
+
 @pytest.fixture
 def db_session():
     engine = create_engine(

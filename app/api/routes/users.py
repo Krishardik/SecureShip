@@ -4,6 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.api_rate_limit import (
+    rate_limit_dependency,
+    registration_api_limiter,
+)
 from app.core.rate_limit import login_rate_limiter
 from app.core.security import hash_password
 from app.db.session import get_db
@@ -25,6 +29,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 @router.post(
     "/register",
     response_model=UserResponse,
+    dependencies=[Depends(rate_limit_dependency(registration_api_limiter))],
     status_code=status.HTTP_201_CREATED,
 )
 def register_user(

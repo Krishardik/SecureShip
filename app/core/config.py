@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 30
 
+    # In-memory API rate limits; overridable through environment variables.
+    registration_rate_limit_max_requests: int = Field(default=5, gt=0)
+    project_creation_rate_limit_max_requests: int = Field(default=10, gt=0)
+    api_rate_limit_window_seconds: int = Field(default=60, gt=0)
+
     # Comma-separated values are read from environment variables.
     allowed_origins: list[str] = ["http://localhost:3000"]
     allowed_hosts: list[str] = ["localhost", "127.0.0.1", "testserver"]
