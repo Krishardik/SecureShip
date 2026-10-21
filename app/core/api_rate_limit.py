@@ -72,9 +72,7 @@ class ApiRateLimiter:
                 return None
 
             if record.count >= self.max_requests:
-                remaining = self.window_seconds - (
-                    now - record.window_started_at
-                )
+                remaining = self.window_seconds - (now - record.window_started_at)
                 return max(1, math.ceil(remaining))
 
             record.count += 1
