@@ -7,7 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Create the non-root identity and writable runtime data directory first.
+# Create a non-root user and the writable runtime data directory.
 RUN groupadd --system appgroup \
     && useradd --system --gid appgroup --home-dir /nonexistent appuser \
     && mkdir -p /data \
@@ -15,9 +15,16 @@ RUN groupadd --system appgroup \
 
 COPY requirements.txt ./requirements.txt
 
-# Pin pip so future builds use a predictable installer version.
+# Install pinned dependencies, then remove pip and its bundled libraries.
+# The application does not need a package installer at runtime.
 RUN python -m pip install --no-cache-dir "pip==26.2.1" \
-    && python -m pip install --no-cache-dir -r requirements.txt
+    && python -m pip install --no-cache-dir -r requirements.txt \
+    && rm -rf \
+        /usr/local/lib/python3.10/site-packages/pip \
+        /usr/local/lib/python3.10/site-packages/pip-*.dist-info \
+        /usr/local/bin/pip \
+        /usr/local/bin/pip3 \
+        /usr/local/bin/pip3.10
 
 COPY --chown=appuser:appgroup app/ ./app/
 COPY --chown=appuser:appgroup alembic/ ./alembic/
