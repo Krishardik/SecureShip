@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
@@ -9,6 +11,8 @@ from app.core.api_rate_limit import (
 from app.db.session import get_db
 from app.models import Project, User
 from app.schemas.project import ProjectCreate, ProjectResponse, ProjectUpdate
+
+security_logger = logging.getLogger("secureship.security")
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -57,6 +61,15 @@ def create_project(
     db.commit()
     db.refresh(new_project)
 
+    security_logger.info(
+        "Project created",
+        extra={
+            "event": "project.created",
+            "user_id": current_user.id,
+            "project_id": new_project.id,
+        },
+    )
+
     return new_project
 
 
@@ -88,6 +101,15 @@ def update_project(
     db.commit()
     db.refresh(project)
 
+    security_logger.info(
+        "Project updated",
+        extra={
+            "event": "project.updated",
+            "user_id": current_user.id,
+            "project_id": project.id,
+        },
+    )
+
     return project
 
 
@@ -101,8 +123,18 @@ def delete_project(
     db: Session = Depends(get_db),  # noqa: B008
 ):
     project = get_owned_project(project_id, current_user.id, db)
+    deleted_project_id = project.id
 
     db.delete(project)
     db.commit()
+
+    security_logger.info(
+        "Project deleted",
+        extra={
+            "event": "project.deleted",
+            "user_id": current_user.id,
+            "project_id": deleted_project_id,
+        },
+    )
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
