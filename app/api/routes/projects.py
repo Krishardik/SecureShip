@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies.auth import get_current_user
@@ -71,6 +71,27 @@ def create_project(
     )
 
     return new_project
+
+
+@router.get(
+    "",
+    response_model=list[ProjectResponse],
+)
+def list_projects(
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    current_user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+):
+    """List only the authenticated user's projects with bounded pagination."""
+    return (
+        db.query(Project)
+        .filter(Project.owner_id == current_user.id)
+        .order_by(Project.id.asc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
 
 
 @router.get(
