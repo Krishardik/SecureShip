@@ -21,4 +21,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
         response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
 
+        # Restrict resource loading for browser-rendered API documentation.
+        # Swagger UI may need additional directives if its assets are hosted
+        # externally or if inline scripts/styles are enabled.
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'none'; "
+            "frame-ancestors 'none'; "
+            "base-uri 'none'; "
+            "form-action 'none'"
+        )
+
         return response

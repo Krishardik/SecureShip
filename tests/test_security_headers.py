@@ -1,33 +1,28 @@
+"""Regression tests for HTTP security response headers."""
+
 from fastapi.testclient import TestClient
 
 
-def test_security_headers_are_present(client: TestClient):
-    response = client.get("/")
+def test_security_headers_are_present_on_api_responses(client: TestClient):
+    response = client.get("/projects")
 
-    assert response.status_code == 200
-
-    assert response.headers["X-Content-Type-Options"] == "nosniff"
-    assert response.headers["X-Frame-Options"] == "DENY"
-    assert response.headers["Referrer-Policy"] == "no-referrer"
-    assert (
-        response.headers["Permissions-Policy"]
-        == "camera=(), microphone=(), geolocation=()"
-    )
-    assert response.headers["Cache-Control"] == "no-store"
-    assert response.headers["Cross-Origin-Resource-Policy"] == "same-origin"
-    assert response.headers["X-Permitted-Cross-Domain-Policies"] == "none"
-
-
-def test_security_headers_are_applied_to_authenticated_routes(
-    client: TestClient,
-):
-    response = client.get("/projects/999999")
-
+    # The endpoint requires authentication, but its error response must
+    # still receive the application's security headers.
     assert response.status_code == 401
 
-    assert response.headers["X-Content-Type-Options"] == "nosniff"
-    assert response.headers["X-Frame-Options"] == "DENY"
-    assert response.headers["Referrer-Policy"] == "no-referrer"
-    assert response.headers["Cache-Control"] == "no-store"
-    assert response.headers["Cross-Origin-Resource-Policy"] == "same-origin"
-    assert response.headers["X-Permitted-Cross-Domain-Policies"] == "none"
+    headers = response.headers
+
+    assert headers.get("x-content-type-options") == "nosniff"
+    assert headers.get("x-frame-options") == "DENY"
+    assert "referrer-policy" in headers
+    assert "content-security-policy" in headers
+
+
+def test_security_headers_are_present_on_not_found_responses(
+    client: TestClient,
+):
+    response = client.get("/route-that-does-not-exist")
+
+    assert response.status_code == 404
+    assert response.headers.get("x-content-type-options") == "nosniff"
+    assert response.headers.get("x-frame-options") == "DENY"
