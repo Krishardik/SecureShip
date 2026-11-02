@@ -8,10 +8,19 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.session import get_db
 from app.models import User
+from app.services.token import ACCESS_TOKEN_TYPE
 
 security_logger = logging.getLogger("secureship.security")
 
 bearer_scheme = HTTPBearer()
+
+
+def _unauthorized(detail: str = "Invalid or expired token") -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail=detail,
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 def get_current_user(
@@ -25,46 +34,56 @@ def get_current_user(
             token,
             settings.jwt_secret_key,
             algorithms=[settings.jwt_algorithm],
+            options={
+                "require": ["sub", "iat", "exp", "typ"],
+                "verify_iat": True,
+            },
         )
+    except jwt.MissingRequiredClaimError as exc:
+        security_logger.warning(
+            "Authentication failed: required token claim missing",
+            extra={"event": "token_validation_failure"},
+        )
+        detail = "Invalid token" if exc.claim == "sub" else "Invalid or expired token"
+        raise _unauthorized(detail) from None
     except jwt.PyJWTError:
         security_logger.warning(
             "Authentication failed: invalid or expired token",
             extra={"event": "token_validation_failure"},
         )
+        raise _unauthorized() from None
 
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
-        ) from None
+    user_id_claim = payload.get("sub")
 
-    user_id = payload.get("sub")
-
-    if user_id is None:
-        security_logger.warning(
-            "Authentication failed: token missing subject",
-            extra={"event": "token_validation_failure"},
-        )
-
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    try:
-        user_id = int(user_id)
-    except (TypeError, ValueError):
+    if not isinstance(user_id_claim, str) or not user_id_claim.isdecimal():
         security_logger.warning(
             "Authentication failed: invalid token subject",
             extra={"event": "token_validation_failure"},
         )
+        raise _unauthorized("Invalid token") from None
 
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-            headers={"WWW-Authenticate": "Bearer"},
-        ) from None
+    if payload.get("typ") != ACCESS_TOKEN_TYPE:
+        security_logger.warning(
+            "Authentication failed: incorrect token type",
+            extra={"event": "token_validation_failure"},
+        )
+        raise _unauthorized("Invalid token") from None
+
+    try:
+        user_id = int(user_id_claim)
+    except (TypeError, ValueError, OverflowError):
+        security_logger.warning(
+            "Authentication failed: invalid token subject",
+            extra={"event": "token_validation_failure"},
+        )
+        raise _unauthorized("Invalid token") from None
+
+    if user_id <= 0:
+        security_logger.warning(
+            "Authentication failed: invalid token subject",
+            extra={"event": "token_validation_failure"},
+        )
+        raise _unauthorized("Invalid token") from None
 
     user = db.query(User).filter(User.id == user_id).first()
 
@@ -76,12 +95,7 @@ def get_current_user(
                 "user_id": user_id,
             },
         )
-
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise _unauthorized("User not found")
 
     if not user.is_active:
         security_logger.warning(
@@ -91,11 +105,6 @@ def get_current_user(
                 "user_id": user.id,
             },
         )
-
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Inactive user",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise _unauthorized("Inactive user")
 
     return user

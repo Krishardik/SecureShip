@@ -9,6 +9,7 @@ from app.api.dependencies.auth import get_current_user
 from app.core.config import settings
 from app.core.security import hash_password
 from app.models import User
+from app.services.token import create_access_token
 
 
 def test_get_current_user_returns_user(
@@ -23,11 +24,7 @@ def test_get_current_user_returns_user(
     db_session.commit()
     db_session.refresh(user)
 
-    token = jwt.encode(
-        {"sub": str(user.id)},
-        settings.jwt_secret_key,
-        algorithm=settings.jwt_algorithm,
-    )
+    token = create_access_token(user.id)
 
     credentials = HTTPAuthorizationCredentials(
         scheme="Bearer",
@@ -118,7 +115,11 @@ def test_get_current_user_rejects_token_without_subject(
     db_session: Session,
 ):
     token = jwt.encode(
-        {},
+        {
+            "iat": datetime.now(timezone.utc),
+            "exp": datetime.now(timezone.utc) + timedelta(minutes=5),
+            "typ": "access",
+        },
         settings.jwt_secret_key,
         algorithm=settings.jwt_algorithm,
     )
@@ -142,11 +143,7 @@ def test_get_current_user_rejects_token_without_subject(
 def test_get_current_user_rejects_nonexistent_user(
     db_session: Session,
 ):
-    token = jwt.encode(
-        {"sub": "999999"},
-        settings.jwt_secret_key,
-        algorithm=settings.jwt_algorithm,
-    )
+    token = create_access_token(999999)
 
     credentials = HTTPAuthorizationCredentials(
         scheme="Bearer",
@@ -177,11 +174,7 @@ def test_get_current_user_rejects_inactive_user(
     db_session.commit()
     db_session.refresh(user)
 
-    token = jwt.encode(
-        {"sub": str(user.id)},
-        settings.jwt_secret_key,
-        algorithm=settings.jwt_algorithm,
-    )
+    token = create_access_token(user.id)
 
     credentials = HTTPAuthorizationCredentials(
         scheme="Bearer",
