@@ -4,16 +4,18 @@ import jwt
 
 from app.core.config import settings
 
+ACCESS_TOKEN_TYPE = "access"
+
 
 def create_access_token(user_id: int) -> str:
     now = datetime.now(timezone.utc)
-
     expires_at = now + timedelta(minutes=settings.jwt_access_token_expire_minutes)
 
     payload = {
         "sub": str(user_id),
         "iat": now,
         "exp": expires_at,
+        "typ": ACCESS_TOKEN_TYPE,
     }
 
     return jwt.encode(
